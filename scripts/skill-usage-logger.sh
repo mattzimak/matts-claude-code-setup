@@ -6,13 +6,13 @@
 # prune, or good skills with a weak `description` trigger). Non-blocking: it
 # only logs, never denies. Summarize with skill-usage-report.sh.
 #
-# Wired via .claude/settings.local.json (personal telemetry = personal state,
-# per the global-vs-project settings model). Log path is gitignored.
+# Logs per user under ~/.claude/matts-setup/logs, so nothing lands inside your
+# projects or their git history.
 
 # Fail-safe by design: telemetry must NEVER block or error the Skill call it
 # observes. Every step is best-effort; the script always exits 0.
 {
-  LOG_DIR="${CLAUDE_PROJECT_DIR:-.}/.claude/logs"
+  LOG_DIR="${MATTS_SETUP_LOG_DIR:-$HOME/.claude/matts-setup/logs}"
   LOG_FILE="$LOG_DIR/skill-usage.jsonl"
   mkdir -p "$LOG_DIR"
 

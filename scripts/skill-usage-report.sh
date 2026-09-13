@@ -1,6 +1,6 @@
 #!/bin/bash
 # Summarize skill-usage telemetry captured by skill-usage-logger.sh.
-# Usage: .claude/hooks/skill-usage-report.sh
+# Usage: skill-usage-report.sh
 #
 # Prints skills ranked by invocation count (most-used first). Cross-reference
 # against the installed skill list to spot skills that NEVER appear here -
@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-LOG_FILE="${CLAUDE_PROJECT_DIR:-.}/.claude/logs/skill-usage.jsonl"
+LOG_FILE="${MATTS_SETUP_LOG_DIR:-$HOME/.claude/matts-setup/logs}/skill-usage.jsonl"
 
 if [ ! -s "$LOG_FILE" ]; then
   echo "No skill-usage data yet at $LOG_FILE"

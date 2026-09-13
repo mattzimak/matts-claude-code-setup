@@ -1,0 +1,13 @@
+{
+  "name": "matts-setup",
+  "version": "1.0.0",
+  "description": "Matt Zimak's Claude Code setup as an installable onboarding: the hooks, operating rules and settings he runs across three companies, adapted to you by a short interview. Run /matts-setup:onboard after installing.",
+  "author": {
+    "name": "Matt Zimak",
+    "url": "https://mattzimak.com"
+  },
+  "homepage": "https://github.com/mattzimak/matts-claude-code-setup",
+  "repository": "https://github.com/mattzimak/matts-claude-code-setup",
+  "license": "MIT",
+  "keywords": ["hooks", "onboarding", "setup", "evidence", "workflow", "ai-agents"]
+}

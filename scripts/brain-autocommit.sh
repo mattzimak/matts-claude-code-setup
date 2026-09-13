@@ -6,7 +6,7 @@
 # someone remembered. The rule: whenever a brain gets fed new information, it must
 # be committed AND pushed in the same session so the remote is always the source of truth.
 #
-# WIRED AS: a `Stop` hook in .claude/settings.json - runs when Claude finishes responding.
+# WIRED AS: a `Stop` hook - runs when Claude finishes responding.
 #
 # SAFETY (this thing writes to git remotes unattended, so it is deliberately conservative):
 #   - Secrets: runs `gitleaks protect --staged` before every commit. Any finding => that repo is
@@ -22,11 +22,17 @@
 
 set -uo pipefail
 
-BRAINS=(
-  "$HOME/code/company-brain"
-  "$HOME/code/client-a-brain"
-  "$HOME/code/knowledge"
-)
+# Repos come from the config (written by /matts-setup:onboard):
+#   "knowledge_repos": ["~/code/company-brain", "~/code/knowledge"]
+# With none configured this hook does nothing - it writes to git remotes, so it
+# must never switch itself on.
+source "$(dirname "$0")/_config.sh"
+BRAINS=()
+while IFS= read -r r; do
+  [ -z "$r" ] && continue
+  BRAINS+=("${r/#\~/$HOME}")
+done < <(cfg_lines '.knowledge_repos[]?')
+[ "${#BRAINS[@]}" -eq 0 ] && exit 0
 
 # MUST be an absolute path outside the brains. Using $PWD here caused the hook to write its own
 # log INTO the brain repo it was syncing, and then commit it (caught in testing 2026-07-29).

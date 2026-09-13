@@ -1,173 +1,126 @@
-# Claude Code setup
+# Matt's Claude Code setup
 
-The hooks, settings and rules I actually run in Claude Code across three companies, with the failure behind each one. Every hook in `hooks/` is tested against the cases where it should fire and the cases where it should stay silent.
+The Claude Code setup I run across three companies, packaged so a blank Claude Code can become it in about five minutes.
 
-This is not a list of what exists. It is one working setup, and the reasoning that shaped it.
+It is an onboarding, not a reading list. You install one plugin, run one command, answer a few questions, and Claude sets itself up: the hooks, the operating rules, and the protective settings, adapted to how you work. Then it runs a self-test to prove every piece works.
+
+## Install
+
+In Claude Code:
+
+```
+/plugin marketplace add mattzimak/matts-claude-code-setup
+/plugin install matts-setup@mattzimak
+```
+
+Then start a new session and run:
+
+```
+/matts-setup:onboard
+```
+
+That is the whole install. Requires `jq`. Onboarding checks for it and tells you how to install it if it is missing.
+
+## What onboarding does
+
+Onboarding is a skill Claude runs for you. It only ever starts when you ask for it, never on its own.
+
+1. **Checks your machine** for `jq` (required), `gitleaks` and `npx` (each needed for one optional feature).
+2. **Asks at most two rounds of questions**, each with a recommended answer, so agreeing is one click. Is this one project or a multi-domain workspace? Any brand names that must always be spelled a certain way? Should knowledge repos auto-commit? Notifications on or off?
+3. **Writes your answers** to `~/.claude/matts-setup/config.json`. Every hook reads that one file, so nothing you change later means editing a script.
+4. **Merges two protections into your own settings**, showing you the change before it writes: transcripts kept for 365 days instead of 30, and a block on Claude reading `.env` and private key files. It backs the file up first and keeps every rule you already had.
+5. **Adds the operating rules** to your `CLAUDE.md`, inside marker comments, so running onboarding again updates them rather than duplicating them.
+6. **Runs the self-test** and shows you every result.
+7. **Reports** what is now active, every file it touched, and exactly how to undo each change.
+
+Run `/matts-setup:onboard` again any time to change an answer.
+
+## What you get
+
+| Hook | When | Effect | Default |
+|---|---|---|---|
+| Evidence audit | every prompt | Every progress report must point to a real tool result | on |
+| Docs first | prompt names a fast-moving tool | Read current docs before answering, not training memory | on, always covers Claude Code |
+| Execute yourself | prompt about setup, deploys, keys | Try it, try it another way, show the command, before handing anything off | on |
+| Domain router | prompt matches one of your domains | Read that domain's `CLAUDE.md` first | on once you add domains |
+| Brand casing | Claude writes a file | Flags a brand or name in the wrong form | on once you add names |
+| Setup log | Claude edits your setup | Reminds it once per session to record what changed | on |
+| Skill telemetry | a skill runs | Logs which skills fire, so you can prune the ones that never do | on |
+| Plan to PDF | a plan is saved under `plans/` | Writes a PDF next to it | on, needs `npx` |
+| Notification | Claude finishes | Desktop notification | on, macOS or Linux |
+| Root hygiene | a file is created in the workspace root | Denies the write and says where it belongs | **opt-in** |
+| Knowledge-repo auto-commit | Claude finishes | Commits and pushes your knowledge repos, gated by gitleaks | **opt-in** |
+
+The last two are off until onboarding switches them on, because one blocks writes and the other pushes to git remotes without asking each time. Neither should ever turn itself on.
+
+Plus two skills: **`onboard`**, which only you can start, and **`operating-rules`**, which Claude consults when it plans work, reports progress or decides whether to ask you something.
 
 ## The one idea
 
 **Instructions drift. Hooks do not.**
 
-`CLAUDE.md` is loaded at the start of a session and then competes for attention with everything else in context. Over a long session, a rule written there can simply stop being followed. A hook fires on an event, every time, regardless of how long the session has run.
+`CLAUDE.md` loads at the start of a session and then competes for attention with everything else. Over a long session a rule written there can simply stop being followed. A hook fires on an event, every time, however long the session has run.
 
-That gives a clean dividing line for where any rule belongs:
+That gives a clean line for where every rule belongs:
 
-- **If an event can detect it, make it a hook.** A file written to the wrong folder, a prompt that mentions a tool, a brand misspelled in copy - all detectable, all hooks.
-- **If it needs judgment, keep it in `CLAUDE.md`.** "Is this plan still ambiguous?" cannot be detected by any event, so it stays a written rule.
+- **If an event can detect it, make it a hook.** A file written to the wrong place, a prompt that mentions a tool, a brand misspelled in copy.
+- **If it needs judgment, write it down.** "Is this plan still ambiguous?" cannot be detected by any event, so it lives in the operating rules.
 
-Most of what follows is that line applied case by case.
+This setup is that line applied case by case.
 
-## Contents
+## Why each part exists
 
-- [Hooks](#hooks)
-- [Rules for writing hooks](#rules-for-writing-hooks)
-- [Settings](#settings)
-- [Never losing a session](#never-losing-a-session)
-- [Secrets](#secrets)
-- [Rules that stay in CLAUDE.md](#rules-that-stay-in-claudemd)
-- [Install](#install)
+Every piece here was added after something went wrong.
 
-## Hooks
+**Transcripts kept for 365 days.** Claude Code deletes session transcripts after 30 days by default. I found out when it deleted the session that had built my personal website. The evidence was an identical cutoff exactly 30 days back across five unrelated local folders, with nothing older surviving anywhere, and no way to recover it. Two things I observed but have not seen documented: the sweep appeared to key on when a transcript was last modified rather than when the session started, and it did not appear to reach into per-session subagent folders.
 
-| Hook | Event | Effect | What it prevents |
-|---|---|---|---|
-| [`evidence-audit-directive.sh`](hooks/evidence-audit-directive.sh) | UserPromptSubmit | injects | Progress reports that claim work nobody verified |
-| [`docs-first-reminder.sh`](hooks/docs-first-reminder.sh) | UserPromptSubmit | injects | Answering fast-moving tools from stale training memory |
-| [`domain-router.sh`](hooks/domain-router.sh) | UserPromptSubmit | injects | Domain rules being invisible when you work from the workspace root |
-| [`root-hygiene.sh`](hooks/root-hygiene.sh) `guard` | PreToolUse (Write) | **denies** | Stray files accumulating in the workspace root |
-| [`root-hygiene.sh`](hooks/root-hygiene.sh) `sweep` | SessionStart | injects | Strays that arrived another way, via a shell or Finder |
-| [`brand-casing-lint.sh`](hooks/brand-casing-lint.sh) | PostToolUse (Edit, Write) | warns | A brand shipping in the wrong casing |
-| [`cc-setup-log-reminder.sh`](hooks/cc-setup-log-reminder.sh) | PostToolUse (Edit, Write) | injects once | Setup changes nobody can reconstruct later |
-| [`plan-to-pdf.sh`](hooks/plan-to-pdf.sh) | PostToolUse (Write) | side effect | Plans that only exist as Markdown nobody opens |
-| [`skill-usage-logger.sh`](hooks/skill-usage-logger.sh) | PreToolUse (Skill) | logs | Installing hundreds of skills with no idea which ones fire |
-| [`brain-autocommit.sh`](hooks/brain-autocommit.sh) | Stop | commits and pushes | Knowledge written into a repo that never reaches the remote |
-| notification (see [`user-settings.json`](settings/user-settings.json)) | Stop | side effect | Watching a terminal to find out a long task finished |
+**Brand casing lint.** A full client outreach pack shipped with the brand in the wrong casing, even though the rule already existed in two places: the assistant's memory and the client's knowledge base. Written rules get missed. A hook fires every time. It warns rather than blocks, because by the time a file is written the useful thing is to say exactly what to fix.
 
-### Evidence audit
+**Execute yourself.** The most common failure in agent work is not a missing capability. It is the agent assuming a limit instead of testing it, or reading one refused command as proof the whole goal is blocked, and then telling you to go do it by hand.
 
-Injects a short directive into every prompt: audit each claim against a tool result from this session, report only what you can point to evidence for, and say plainly when a step failed. It is the cheapest hook here and the one I would install first. Its value is not that the model lies, it is that over a long session "I'll check that" quietly becomes "that's done".
+**Domain router.** A per-domain `CLAUDE.md` only loads when Claude reads a file in that folder, so working from a workspace root means the rules are never in context. The media route checks `docker image` and `favicon` before it checks `image`, so an infrastructure prompt never gets routed to an image-generation skill.
 
-### Docs first
+**Auto-commit.** The first version wrote its log to the current directory, which was inside the repo it was syncing, so it committed its own log. The log now lives outside every repo. It also refuses to commit at all if gitleaks is missing, on the principle that a silent safety gate is worse than none.
 
-When a prompt names a tool whose surface changes often, it injects a reminder to read current official documentation before answering, here through the Context7 MCP server. Topics are independent `if` blocks, so a prompt naming two tools gets both reminders. Claude Code itself is the first topic, because its configuration changes faster than any model's training data.
-
-### Domain router
-
-In a workspace with a `CLAUDE.md` per domain, those files load lazily: only when you `cd` in, or when Claude reads a file under that folder. Work from the root and their rules are never in context. The router injects "read this domain's `CLAUDE.md` first" when a prompt looks like that domain's work.
-
-Two details carry most of the value. **Negative guards come before positive matches**: the media route checks `docker image`, `favicon` and `og-image` first, so an infrastructure prompt never gets routed to an image-generation skill. And **some routes exist to guarantee a skill fires**, not a file gets read, because skill activation is model judgment and a hook is not.
-
-The file also carries an **execute-yourself** block. The most common failure in agent work is not missing capability. It is the agent assuming a limit instead of testing it, or reading one refused command as proof the whole goal is blocked, then telling you to go do it by hand. The block requires any handoff to have been attempted, attempted more than one way, and reported with the exact command and its output.
-
-### Root hygiene
-
-A guard and a sweep, because each catches what the other cannot. The **guard** runs at PreToolUse and denies creating a new file directly in the workspace root, with a reason that tells the model where to put it instead. The **sweep** runs at SessionStart and reports strays that got there without the Write tool, dragged in from Finder or created by a shell command. The guard stops new mess; the sweep finds existing mess.
-
-### Brand casing lint
-
-Built after a full client outreach pack shipped with the brand in the wrong casing, even though the rule already existed in two places. It warns rather than denies, because by PostToolUse the file is already written and the useful move is to say exactly what to fix in the same turn. It skips the files that legitimately quote the wrong forms, or it would nag about its own documentation.
-
-### Setup change log
-
-Fires when a session edits `.claude/`, `CLAUDE.md` or `.mcp.json`, and reminds the model to record what changed and why before the session ends. It fires **once per session**, using a flag file keyed on the session id, so ten edits produce one reminder rather than ten.
-
-### Skill telemetry
-
-A PreToolUse hook on the `Skill` tool that appends one line per invocation to a local log. After a few weeks, [`skill-usage-report.sh`](hooks/skill-usage-report.sh) ranks skills by use, and the ones that never appear are either dead weight to remove or good skills with a trigger description too weak to fire. It is registered in `settings.local.json`, because personal telemetry is personal state and should not be committed.
-
-### Auto-commit knowledge repos
-
-The riskiest hook here, because it writes to git remotes unattended, so it is deliberately conservative. On Stop it walks a list of knowledge repos and commits and pushes anything dirty, but only after `gitleaks protect --staged` passes. A finding skips that repo entirely. If gitleaks is not installed it refuses to commit at all, on the principle that a silent gate is worse than no gate. It never force-pushes, never rewrites history, never touches a repo mid-rebase, and aborts a conflicting rebase rather than resolving it, leaving the commit local for a person.
-
-One bug from testing is kept in the comments on purpose: the first version wrote its log to `$PWD`, which was inside the repo it was syncing, so it committed its own log. The log path is now absolute and outside every repo.
+**Secrets deny list.** A rule saying "never read `.env`" is advice; a permission rule is enforced. The list covers nested `.env` files too, because subfolder repos carry their own and `Read(.env)` only protects the root.
 
 ## Rules for writing hooks
 
-Distilled from building the hooks above.
+What building these taught me.
 
-1. **Always exit 0.** A hook that errors must never block the session it observes. Wrap best-effort work so failure is silent.
-2. **Silent unless it matters.** Emit nothing on no match. A hook that talks on every prompt trains you, and the model, to ignore it.
-3. **Negative guards before positive matches.** Broad keywords collide across domains. Exclude the known false positives first.
-4. **Deny when the damage can still be prevented, warn when it is already done.** PreToolUse can stop a write; PostToolUse can only report one.
-5. **Nest `additionalContext` inside `hookSpecificOutput`.** At the top level it is silently ignored, per the [hooks guide](https://code.claude.com/docs/en/hooks-guide). The failure mode is a hook that runs, exits cleanly, and does nothing.
-6. **Log outside whatever you are acting on.** See the auto-commit bug above.
-7. **Fire once when once is enough.** A flag file keyed on `session_id` turns repeated events into a single reminder.
-8. **Use `$CLAUDE_PROJECT_DIR` in project hook paths**, so a hook still resolves after the session changes directory.
-9. **Test the silent cases, not just the firing ones.** Half the value of a hook is what it correctly ignores.
+1. **Always exit 0.** A hook that errors must never block the session it is watching.
+2. **Stay silent unless it matters.** A hook that talks on every prompt trains everyone to ignore it.
+3. **Check negative cases before positive ones.** Broad keywords collide across domains.
+4. **Deny when the damage can still be prevented; warn when it is already done.**
+5. **Nest `additionalContext` inside `hookSpecificOutput`.** At the top level it is [silently ignored](https://code.claude.com/docs/en/hooks-guide), so the hook runs, exits cleanly, and does nothing.
+6. **Keep logs outside whatever the hook acts on.**
+7. **Fire once when once is enough**, with a flag file keyed on the session id.
+8. **Test the silent cases, not only the firing ones.** Half a hook's value is what it correctly ignores.
+9. **Do not read regex config with jq's `@tsv`.** It doubles backslashes, so `\bAcme\b` silently matches nothing. This setup joins fields on a unit separator instead.
+10. **Distrust a green test run.** A check that received no input passes every silent case for the wrong reason. Plant a deliberate bug and make sure the suite catches it.
 
-## Settings
+## How it was verified
 
-[`settings/settings.json`](settings/settings.json) is the project file; [`settings/user-settings.json`](settings/user-settings.json) is the machine-wide one. Keep genuinely global behaviour at user level and everything project-specific in the project.
+- The plugin and marketplace manifests pass `claude plugin validate`.
+- It was installed into a **blank Claude Code** (an empty config directory): marketplace added, plugin installed and enabled, all 14 scripts still executable afterwards.
+- The self-test passes 23 of 23, run from the installed copy rather than the source.
+- The self-test itself was checked by planting two bugs, a router that always fires and a brand lint that never does. It caught both.
+- In a **live session**, Claude Code's own debug log shows the plugin loading, both skills registering, and the evidence-audit and docs-first hooks injecting their context on a real prompt.
 
-### Deny secret reads at the harness level
-
-A `CLAUDE.md` rule saying "never read `.env`" is advice. A `permissions.deny` entry is enforced. Two things matter in the list:
-
-- **Include the nested globs** (`**/.env`, `**/.env.*`). Subfolder repos inside a workspace often carry their own `.env`, and `Read(.env)` alone only covers the root.
-- **Cover key material, not just env files**: `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa`, `id_ed25519`.
-
-### Path-scoped rules
-
-[`rules/dev-product.md`](rules/dev-product.md) shows a rule with `paths` frontmatter. It loads only when Claude reads a file matching the glob, [not on every tool call](https://code.claude.com/docs/en/memory). That makes it the right place for a thin pointer to a domain's `CLAUDE.md`. Keep these as pointers, never copies, because a duplicated rule drifts from its source within weeks.
-
-It complements the domain router: the router keys on the words in the prompt, the rule keys on the files actually touched, so it still catches domain work that began with a prompt the router missed.
-
-## Never losing a session
-
-Claude Code deletes session transcripts after `cleanupPeriodDays`, which [defaults to 30](https://code.claude.com/docs/en/settings-reference). I did not know that until it deleted the session that had built my personal website.
-
-What the evidence showed: an identical last-modified cutoff, exactly 30 days back, across five unrelated local stores, with no surviving transcript older than it anywhere. A manual deletion cannot produce the same cutoff in five directories. Two further things I observed but have not seen documented, so treat them as observations: the sweep appeared to key on last-modified time rather than session start, which is why sessions begun in the same window survived if they had later been resumed; and it did not appear to recurse into per-session subagent folders, which is why their files outlived their parents. No recovery path worked.
-
-The defence has three layers:
-
-1. **Raise the retention.** `"cleanupPeriodDays": 365` in the user settings. Zero fails validation, so use a large number rather than trying to disable it.
-2. **Archive outside the reach of the sweep.** A nightly scheduled job gzips every transcript into a folder outside `~/.claude`, incrementally, never deleting. It writes to a partial file and moves it into place, so an interrupted run cannot leave a truncated archive, and a restore was verified byte-identical with SHA-256.
-3. **Distil what matters while it is fresh.** A skill writes a context file into the project folder: what it is, current state and how it was verified, decisions and their reasoning, open items, and the exact commands. Raw transcripts are recoverable but unreadable; the distilled file is what a future session actually uses.
-
-## Secrets
-
-The pattern that made secrets stop being a recurring problem:
-
-- **One source of truth.** A password manager holds every credential.
-- **One sync script, and nothing else, talks to it.** It writes a local `.env` cache in a single pass, so no session ever needs the vault unlocked, a fingerprint, or a system password.
-- **The cache is fully regenerable.** The script derives its managed key list from its own template, so there is no second list to fall out of date. It reports drift, meaning keys in `.env` with no vault entry, and the target is zero. A committed, names-only manifest records what exists without recording any value.
-- **Agents never read `.env`.** Small consumer scripts load it internally and call the API, so the model runs `api.sh get users/me` and never sees a token. Combined with the deny list above, a leak needs both a missing rule and a bypassed wrapper.
-- **No runtime fallbacks to the vault.** A wrapper that silently falls back to a live vault read fails in confusing ways once the vault layout changes. Fail fast and point at the sync script instead.
-
-The failure that prompted the rewrite: the old sync used a hand-maintained key list that had drifted, so it re-appended the same block on every run until `.env` held 22 copies of several keys.
-
-## Rules that stay in CLAUDE.md
-
-These need judgment, so no event can enforce them.
-
-**Clarify by question, not by quota.** Resolve ambiguity that would fork the build with batched questions, at most four at a time, each carrying a recommended default so agreeing costs one click. Never pad to a number: "ask at least ten questions" manufactures filler and trains rubber-stamping. Sort unknowns by type rather than count. Preferences only the person holds, ask. Facts the code or docs can answer, go and find them. Unknowns nobody can see yet, build a thin first slice that surfaces them cheaply. Stop the moment only safe defaults remain, and say which defaults you took.
-
-**Keep exported plans current.** A plan revised after export gets re-exported to the same filename in the same session, so the saved copy never lags the version being executed. And export with the file-writing tool rather than a shell copy, because the PDF hook fires on Write and a `cp` silently produces a Markdown file with no PDF.
-
-**Log every setup change, twice.** Every change to hooks, settings, skills or `CLAUDE.md` gets an entry saying what changed, why it is good practice, and which files, written so a reader with no context could replicate it. The change-log hook above is the backstop; this is the rule it enforces.
-
-## Install
-
-Copy what you want rather than the whole thing. Each hook is independent.
+Run the self-test yourself at any time:
 
 ```bash
-mkdir -p .claude/hooks
-cp hooks/root-hygiene.sh hooks/domain-router.sh .claude/hooks/
-chmod +x .claude/hooks/*.sh
+bash ~/.claude/plugins/cache/mattzimak/matts-setup/*/scripts/selftest.sh
 ```
 
-Then merge the matching entries from [`settings/settings.json`](settings/settings.json) into your own `.claude/settings.json`. The hooks need `jq`; `brain-autocommit.sh` also needs `gitleaks`; `plan-to-pdf.sh` uses `npx md-to-pdf`.
+## Undo
 
-Edit the parts that are mine. The domain names and keywords in `domain-router.sh`, the brand list in `brand-casing-lint.sh`, and the repo list in `brain-autocommit.sh` are examples, not defaults.
+Onboarding tells you each of these with your exact paths. In general:
 
-Test the silent cases before you trust a hook:
-
-```bash
-echo '{"prompt":"rebuild the docker image"}' | .claude/hooks/domain-router.sh   # expect no output
-echo '{"prompt":"generate a photo of a cabin"}' | .claude/hooks/domain-router.sh # expect JSON
-```
-
-When checking hook output in a script, pipe it with `printf '%s'` rather than `echo`. `echo` can interpret backslash escapes inside the message and hand `jq` broken JSON, which makes a working hook look broken.
+- Restore the settings backup it made: `~/.claude/settings.json.bak.<timestamp>`.
+- Delete `~/.claude/matts-setup/`.
+- Remove the block between the `matts-setup:rules` markers in your `CLAUDE.md`.
+- `/plugin uninstall matts-setup`.
 
 ## License
 

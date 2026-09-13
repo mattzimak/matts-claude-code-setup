@@ -1,0 +1,27 @@
+{
+  "$comment": "Written by /matts-setup:onboard to ~/.claude/matts-setup/config.json. Every hook reads this file; none of them need editing. Delete a key to switch that behaviour back to its default.",
+
+  "domains": [
+    { "name": "content", "claude_md": "content/CLAUDE.md", "keywords": "linkedin|instagram|caption|newsletter|blog post" },
+    { "name": "dev", "claude_md": "dev/CLAUDE.md", "keywords": "website|web ?app|landing ?page|frontend|deploy" }
+  ],
+
+  "brands": [
+    { "trigger": "acme", "bad": "\\bAcme [Rr]ockets\\b", "canonical": "ACME Rockets" }
+  ],
+
+  "docs_topics": [
+    { "name": "n8n", "pattern": "n8n", "library_id": "n8n" }
+  ],
+
+  "root_hygiene": {
+    "enabled": false,
+    "allow": ["AGENTS.md", "CHANGELOG.md", "CLAUDE.md", "README.md", "WORKLOG.md"]
+  },
+
+  "knowledge_repos": [],
+
+  "setup_log": "docs/claude-setup-log.md",
+
+  "notify": "macos"
+}

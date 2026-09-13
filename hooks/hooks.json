@@ -1,0 +1,26 @@
+{
+  "description": "Matt's Claude Code setup: evidence audit, docs-first, domain routing, execute-yourself, brand casing, setup log, skill telemetry, notifications, and the opt-in root hygiene and knowledge-repo auto-commit.",
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/evidence-audit-directive.sh", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/docs-first-reminder.sh", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/domain-router.sh", "timeout": 10 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Write", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/root-hygiene.sh", "args": ["guard"], "timeout": 10 } ] },
+      { "matcher": "Skill", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/skill-usage-logger.sh", "timeout": 10 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/brand-casing-lint.sh", "timeout": 10 } ] },
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/cc-setup-log-reminder.sh", "timeout": 10 } ] },
+      { "matcher": "Write", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/plan-to-pdf.sh", "timeout": 120 } ] }
+    ],
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/root-hygiene.sh", "args": ["sweep"], "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh", "timeout": 10 } ] },
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/brain-autocommit.sh", "timeout": 120 } ] }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "mattzimak",
+  "description": "Matt Zimak's Claude Code setup: hooks, operating rules and an onboarding interview that adapts them to you.",
+  "owner": {
+    "name": "Matt Zimak",
+    "url": "https://mattzimak.com"
+  },
+  "plugins": [
+    {
+      "name": "matts-setup",
+      "source": "./",
+      "description": "Matt Zimak's Claude Code setup as an installable onboarding. Install, then run /matts-setup:onboard.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Matt Zimak"
+      }
+    }
+  ]
+}
