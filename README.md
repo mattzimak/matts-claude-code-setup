@@ -29,7 +29,7 @@ Onboarding is a skill Claude runs for you. It only ever starts when you ask for 
 2. **Asks at most two rounds of questions**, each with a recommended answer, so agreeing is one click. Is this one project or a multi-domain workspace? Any brand names that must always be spelled a certain way? Should knowledge repos auto-commit? Notifications on or off?
 3. **Writes your answers** to `~/.claude/matts-setup/config.json`. Every hook reads that one file, so nothing you change later means editing a script.
 4. **Merges two protections into your own settings**, showing you the change before it writes: transcripts kept for 365 days instead of 30, and a block on Claude reading `.env` and private key files. It backs the file up first and keeps every rule you already had.
-5. **Adds the operating rules** to your `CLAUDE.md`, inside marker comments, so running onboarding again updates them rather than duplicating them.
+5. **Adds the operating rules** to your `CLAUDE.md`, inside marker comments, using a script rather than a model edit, so running onboarding again updates them in place and never duplicates them.
 6. **Runs the self-test** and shows you every result.
 7. **Reports** what is now active, every file it touched, and exactly how to undo each change.
 
@@ -102,8 +102,8 @@ What building these taught me.
 ## How it was verified
 
 - The plugin and marketplace manifests pass `claude plugin validate`.
-- It was installed into a **blank Claude Code** (an empty config directory): marketplace added, plugin installed and enabled, all 14 scripts still executable afterwards.
-- The self-test passes 23 of 23, run from the installed copy rather than the source.
+- It was installed into a **blank Claude Code** (an empty config directory): marketplace added, plugin installed and enabled, all 15 scripts still executable afterwards.
+- The self-test passes 28 of 28, run from the installed copy rather than the source.
 - The self-test itself was checked by planting two bugs, a router that always fires and a brand lint that never does. It caught both.
 - In a **live session**, Claude Code's own debug log shows the plugin loading, both skills registering, and the evidence-audit and docs-first hooks injecting their context on a real prompt.
 

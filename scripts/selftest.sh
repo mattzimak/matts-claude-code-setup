@@ -92,6 +92,22 @@ jq -e '.permissions.deny | index("Read(**/.env)")' "$s" >/dev/null && ok "settin
 before="$(jq -S . "$s")"; "$HERE/merge-settings.sh" "$s" >/dev/null
 [ "$before" = "$(jq -S . "$s")" ] && ok "settings merge: second run changes nothing" || bad "settings merge" "not idempotent"
 
+
+# Rules install: appends once, replaces in place, never duplicates, leaves other content alone.
+c="$TMP/CLAUDE.md"
+printf '# My own notes\n\nKeep this line.\n' > "$c"
+"$HERE/install-rules.sh" "$c" >/dev/null
+[ "$(grep -c 'matts-setup:rules:start' "$c")" = 1 ] && ok "rules: added once to an existing CLAUDE.md" || bad "rules" "not added exactly once"
+grep -q 'Keep this line.' "$c" && ok "rules: leaves the user's own content untouched" || bad "rules" "user content lost"
+first="$(cat "$c")"; "$HERE/install-rules.sh" "$c" >/dev/null
+[ "$first" = "$(cat "$c")" ] && ok "rules: second run is byte-identical" || bad "rules" "second run changed the file"
+sed -i.bak 's/Report only what you can prove/STALE OLD WORDING/' "$c" && rm -f "$c.bak"
+"$HERE/install-rules.sh" "$c" >/dev/null
+{ ! grep -q 'STALE OLD WORDING' "$c" && [ "$(grep -c 'matts-setup:rules:start' "$c")" = 1 ]; } \
+  && ok "rules: replaces an outdated block in place" || bad "rules" "outdated block not replaced cleanly"
+"$HERE/install-rules.sh" "$TMP/brand-new/CLAUDE.md" >/dev/null
+[ "$(grep -c 'matts-setup:rules:end' "$TMP/brand-new/CLAUDE.md")" = 1 ] && ok "rules: creates a CLAUDE.md that does not exist yet" || bad "rules" "missing file not created"
+
 echo
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

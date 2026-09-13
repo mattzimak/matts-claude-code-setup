@@ -113,14 +113,18 @@ retention value, and changes nothing on a second run. Note the backup path it pr
 
 ## Step 5 - Add the operating rules
 
-Plugins cannot load a CLAUDE.md into context, so the operating rules only take effect once they
-are in the user's own. Ask where they want them: the **user-level** file `~/.claude/CLAUDE.md`
-(recommended, applies everywhere) or this **project's** `CLAUDE.md`.
+Plugins cannot load a CLAUDE.md into context, so the operating rules only take effect once they are in
+the user's own. Ask where they want them: the **user-level** file `~/.claude/CLAUDE.md` (recommended,
+applies everywhere) or this **project's** `CLAUDE.md`. Then run the script, rather than editing the file
+yourself:
 
-Append the contents of `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md`. It starts and ends with
-marker comments. If the markers are already present, **replace the block between them** instead of
-appending a second copy, so re-running onboarding never duplicates it. Never touch anything outside
-the markers.
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/install-rules.sh ~/.claude/CLAUDE.md
+```
+
+It puts the rules between two marker comments. If they are already there it replaces that block in
+place; otherwise it appends. It never touches anything outside the markers, and a second run leaves the
+file byte-identical, so re-running onboarding cannot create a duplicate.
 
 ## Step 6 - Prove it works
 

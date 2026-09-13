@@ -10,7 +10,7 @@
       "name": "matts-setup",
       "source": "./",
       "description": "Matt Zimak's Claude Code setup as an installable onboarding. Install, then run /matts-setup:onboard.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": {
         "name": "Matt Zimak"
       }
