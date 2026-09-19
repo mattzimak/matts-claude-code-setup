@@ -1,5 +1,7 @@
 # Matt's Claude Code setup
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![Plugin 1.0.1](https://img.shields.io/badge/plugin-1.0.1-black) ![Self-test 28 of 28](https://img.shields.io/badge/self--test-28%2F28-2ea043) ![SkillSpector 100](https://img.shields.io/badge/SkillSpector-100%2F100-2ea043)
+
 The Claude Code setup I run across three companies, packaged so a blank Claude Code can become it in about five minutes.
 
 It is an onboarding, not a reading list. You install one plugin, run one command, answer a few questions, and Claude sets itself up: the hooks, the operating rules, and the protective settings, adapted to how you work. Then it runs a self-test to prove every piece works.
@@ -54,6 +56,20 @@ Run `/matts-setup:onboard` again any time to change an answer.
 The last two are off until onboarding switches them on, because one blocks writes and the other pushes to git remotes without asking each time. Neither should ever turn itself on.
 
 Plus two skills: **`onboard`**, which only you can start, and **`operating-rules`**, which Claude consults when it plans work, reports progress or decides whether to ask you something.
+
+## What is inside
+
+| | Count | Where |
+|---|---|---|
+| Hooks | 11, on 5 events (UserPromptSubmit, PreToolUse, PostToolUse, SessionStart, Stop) | `hooks/hooks.json` |
+| Scripts | 15 shell scripts, all readable, all exit 0 | `scripts/` |
+| Skills | 2 (`onboard`, `operating-rules`) | `skills/` |
+| Templates | 3 (CLAUDE.md block, config, path-scoped rule) | `templates/` |
+| Self-test | 28 checks | `scripts/selftest.sh` |
+
+## Works with
+
+Claude Code only, 2.1 or later (plugins load `hooks/hooks.json` by convention from that version). macOS and Linux; the notification hook uses `osascript` on macOS and `notify-send` on Linux. It does not ship adapters for Codex, Cursor or other harnesses; if you need those, see [ECC](https://github.com/affaan-m/ECC) below.
 
 ## The one idea
 
@@ -112,6 +128,35 @@ Run the self-test yourself at any time:
 ```bash
 bash ~/.claude/plugins/cache/mattzimak/matts-setup/*/scripts/selftest.sh
 ```
+
+## Security
+
+Hooks run shell commands on your machine, so read them before you install them. Everything this plugin runs is in `scripts/`, plain bash, about 15 files.
+
+- No network calls, with one opt-in exception: knowledge-repo auto-commit runs `git push` on the repos you name, and only after `gitleaks` passes.
+- No secrets are read. Onboarding adds a permission rule that blocks Claude from reading `.env` and private key files.
+- Nothing runs on install. The only entry points are Claude Code events and the `/matts-setup:onboard` command you start yourself.
+- Scanned with [NVIDIA SkillSpector](https://github.com/NVIDIA/skillspector) (static analysis, `--no-llm`): score 100/100, no findings.
+- Do not copy `hooks/hooks.json` into your own `settings.json`. Claude Code loads plugin hooks itself, and a second copy makes them fire twice.
+
+Found a problem? Open an issue, or email hello@mattzimak.com for anything you would rather not post publicly.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Onboarding stops at "jq not found" | `jq` is required by every hook | `brew install jq` or your package manager, then run onboarding again |
+| A hook seems to fire twice | `hooks/hooks.json` copied into `settings.json` | remove the copy; the plugin already loads it |
+| No PDF next to a saved plan | `npx` missing or the file is not under `plans/` | install Node, or move the plan; the hook only watches `plans/` |
+| No desktop notification on Linux | `notify-send` missing | install `libnotify`; the hook stays silent without it |
+| Auto-commit does nothing | `gitleaks` missing, or the feature is still opt-out | install gitleaks and re-run onboarding; it refuses to commit without the gate |
+| A brand name is not flagged | the name is not in `~/.claude/matts-setup/config.json` | run onboarding again and add it |
+
+## Compared with ECC
+
+[ECC](https://github.com/affaan-m/ECC) is the big one: hundreds of skills, agents and rules, adapters for Codex, Cursor, OpenCode and more, a hosted GitHub App. If you want breadth, or you run several harnesses, start there.
+
+This repo is the opposite shape on purpose: one founder's setup, 11 hooks and 2 skills, every piece added after something went wrong, self-tested, readable in an afternoon. It is for people who run companies with Claude Code rather than build software with it all day, and it is a starting point you are meant to trim, not a platform. The two coexist; nothing here conflicts with an ECC install.
 
 ## Undo
 
